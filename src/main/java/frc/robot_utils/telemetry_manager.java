@@ -58,10 +58,6 @@ public class telemetry_manager extends SubsystemBase {
     SmartDashboard.putNumber("Shooter right speed actual", shootersubsystem.shooterData()[3]);
     SmartDashboard.putNumber("Shooter right speed desired", shootersubsystem.shooterData()[4]);
     SmartDashboard.putNumber("Shooter right speed error", shootersubsystem.shooterData()[5]);
-    SmartDashboard.putNumber("Shooter left PID output", shootersubsystem.shooterData()[6]);
-    SmartDashboard.putNumber("Shooter left FF output", shootersubsystem.shooterData()[7]);
-    SmartDashboard.putNumber("Shooter right PID output", shootersubsystem.shooterData()[8]);
-    SmartDashboard.putNumber("Shooter right FF output", shootersubsystem.shooterData()[9]);
   }
 
 public void climberData() {

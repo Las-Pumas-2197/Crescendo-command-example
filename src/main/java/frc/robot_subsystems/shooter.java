@@ -9,12 +9,15 @@ import com.revrobotics.RelativeEncoder;
 import com.revrobotics.CANSparkLowLevel.MotorType;
 
 import static edu.wpi.first.wpilibj2.command.Commands.parallel;
+//import static edu.wpi.first.wpilibj2.command.Commands.waitSeconds;
+import static edu.wpi.first.wpilibj2.command.Commands.waitUntil;
 
 import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.controller.SimpleMotorFeedforward;
 import edu.wpi.first.wpilibj.DigitalInput;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
+import edu.wpi.first.wpilibj2.command.button.Trigger;
 import frc.robot.configuration;
 
 /**Shooter subsystem class. Use to operate the note shooter on the robot.*/
@@ -43,14 +46,12 @@ public class shooter extends SubsystemBase {
   private double leftspeedact;
   private double leftspeeddes;
   private double leftspeederror;
-  private double leftPIDout;
-  private double leftFFout;
   private double rightspeedact;
   private double rightspeeddes;
   private double rightspeederror;
-  private double rightPIDout;
-  private double rightFFout;
+  private double velocitysetpoint;
   private boolean atSetpoint;
+  private boolean shooterready;
 
   public shooter() {
 
@@ -95,43 +96,38 @@ public class shooter extends SubsystemBase {
     notesensor = new DigitalInput(configuration.shooterconfig.notesensorport);
   }
 
-  /**Runs the shooter on robot at a specified RPM.
+  /**Runs the shooter on robot at a specified RPM. Used exclusively for internal functions.
    * @param velocityRPM RPM desired.
    */
-  public Command shooterrun(double velocityRPM) {
+  private Command startshooterCL(double velocityRPM) {
 
-    //write to internal values, speed actuals are gathered from encoders, speed des is the setpoint passed into this command,
-    //error is the difference between the two
-    leftspeedact = leftshooterencoder.getVelocity();
-    leftspeeddes = velocityRPM;
-    leftspeederror = leftspeeddes - leftspeedact;
-    rightspeedact = rightshooterencoder.getVelocity();
-    rightspeeddes = velocityRPM;
-    rightspeederror = rightspeeddes - rightspeedact;
-    
-    //calculatte PIDs and FFs
-    leftPIDout = leftPID.calculate(leftshooterencoder.getVelocity(), velocityRPM);
-    leftFFout = leftFF.calculate(velocityRPM);
-    rightPIDout = rightPID.calculate(leftshooterencoder.getVelocity(), velocityRPM);
-    rightFFout = rightFF.calculate(velocityRPM);
+    velocitysetpoint = velocityRPM;
 
     //run two runnables in parallel for left and right shooter and write PIDF outputs to motors
     //parallel command will not finish until both subsequent runnables are finished or until interrupted
     return parallel(
-      run(() -> leftshooter.setVoltage(leftPIDout + leftFFout)).finallyDo(() -> leftshooter.setVoltage(0)),
-      run(() -> rightshooter.setVoltage(rightPIDout + rightFFout)).finallyDo(() -> rightshooter.setVoltage(0))
-    );
+
+      run(() -> leftshooter.setVoltage(
+        leftPID.calculate(leftshooterencoder.getVelocity(), velocityRPM) + leftFF.calculate(velocityRPM))),
+        
+      run(() -> rightshooter.setVoltage(
+        rightPID.calculate(leftshooterencoder.getVelocity(), velocityRPM) + rightFF.calculate(velocityRPM))));
+  }
+
+  /**Stops the shooter motors. Used exclusively for internal functions. */
+  private Command stopshooter() {
+
+    //the .alongWith() function is a decorator similar in function to the parallel() method, just runs sequentially in 
+    //line rather than in parallel on the same thread
+    return runOnce(() -> leftshooter.set(0)).alongWith(runOnce(() -> rightshooter.set(0)));
   }
 
   /**Returns a bool that explains whether both PID controllers are at setpoint.*/
   public boolean atSetpoint() {
     
     //check if PIDs are within tolerance, if yes then atSetpoint = true
-    if (leftPID.atSetpoint() & rightPID.atSetpoint()) {
-      atSetpoint = true;
-    } else {
-      atSetpoint = false;
-    }
+    atSetpoint = leftPID.atSetpoint() & rightPID.atSetpoint() ? true : false;
+
     return atSetpoint;
   }
 
@@ -140,26 +136,48 @@ public class shooter extends SubsystemBase {
 
     //run shooter motors at 1/4 max speed to controllably eject note from the robot
     return parallel(
-      run(() -> leftshooter.set(0.25)).finallyDo(() -> leftshooter.setVoltage(0)),
-      run(() -> rightshooter.set(0.25)).finallyDo(() -> rightshooter.setVoltage(0)));
+      run(() -> leftshooter.set(0.25)).finallyDo(() -> leftshooter.set(0)),
+      run(() -> rightshooter.set(0.25)).finallyDo(() -> rightshooter.set(0)));
+  }
+
+  /**Ignores note sensor state and overrides intake motors to be on.*/
+  public Command intakeoverride() {
+
+    //runs intake motors at full speed, then sets speed to 0 when cancelled
+    return parallel(
+      run(() -> lowerintake.set(1)).finallyDo(() -> lowerintake.set(0)),
+      run(() -> upperintake.set(1)).finallyDo(() -> upperintake.set(0)));
+  }
+
+  /**Runs the intake motors in reverse at 1/4 speed to help remove any jam in intake system.*/
+  public Command intakeeject() {
+    return parallel(
+      run(() -> lowerintake.set(-0.25)).finallyDo(() -> lowerintake.set(0)),
+      run(() -> upperintake.set(-0.25)).finallyDo(() -> upperintake.set(0)));
   }
 
   /**Runs intake continuously until note is detected or command is ended.*/
-  public Command intake() {
+  public Command autointake() {
 
-    //run intakes until note sensor changes state to true. note that .until decorator only accepts booleansupplier.
-    //any "Supplier" subtype can be generated using the :: function on a function that returns a normal var,
-    //such as a long, int, double, or boolean
-    return parallel(
-      run(() -> lowerintake.set(1)).until(notesensor::get).finallyDo(() -> lowerintake.setVoltage(0)),
-      run(() -> upperintake.set(1)).until(notesensor::get).finallyDo(() -> upperintake.setVoltage(0)));
+    //simply runs intake until note is detected. set(0) already handled by intakeoverride() function so not needed
+    return run(() -> intakeoverride()).until(notesensor::get);
   }
 
-  /**Runs the motors in reverse at 1/4 speed to remove any jam in intake system.*/
-  public Command intakeeject() {
-    return parallel(
-      run(() -> lowerintake.set(-0.25)).finallyDo(() -> lowerintake.setVoltage(0)),
-      run(() -> upperintake.set(-0.25)).finallyDo(() -> upperintake.setVoltage(0)));
+  /**Spins up shooter to passed velocity, and feeds note into shooter.*/
+  public Command shoot(double velocity) {
+
+    //trigger goes true when at velocity setpoint, note is detected, and debounce period of 1 sec has passed. Then pass trigger
+    //as boolean to shooterready var. This vastly simplifies and condenses shoot() logic
+    shooterready = new Trigger(() -> atSetpoint).and(notesensor::get).debounce(1).getAsBoolean();
+
+    //starts shooter at passed velocity, waits until shooterready boolean from trigger above passes true, then runs intake
+    //until shooterready bool reads false (due to notesensor going false), then stops shooter and ends command
+    return 
+      run(() -> startshooterCL(velocity))
+      .andThen(waitUntil(() -> shooterready)
+      .andThen(intakeoverride())
+      .until(() -> shooterready = false)
+      .finallyDo(() -> stopshooter()));
   }
 
   /**Returns an array of doubles containing pertinate data from the shooter subsystem.*/
@@ -171,13 +189,18 @@ public class shooter extends SubsystemBase {
       rightspeedact, //3
       rightspeeddes, //4
       rightspeederror, //5
-      leftPIDout, //6
-      leftFFout, //7
-      rightPIDout, //8
-      rightFFout //9
     };
   }
 
   @Override
-  public void periodic() {}
+  public void periodic() {
+    //write to internal values, speed actuals are gathered from encoders, speed des is the setpoint passed into this command,
+    //error is the difference between the two
+    leftspeedact = leftshooterencoder.getVelocity();
+    leftspeeddes = velocitysetpoint;
+    leftspeederror = leftspeeddes - leftspeedact;
+    rightspeedact = rightshooterencoder.getVelocity();
+    rightspeeddes = velocitysetpoint;
+    rightspeederror = rightspeeddes - rightspeedact;
+  }
 }
