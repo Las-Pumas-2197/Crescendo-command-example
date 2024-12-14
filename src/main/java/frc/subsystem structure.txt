@@ -1,0 +1,47 @@
+drivetrain should be its own subsystem.
+    mecanum drive with 4 motors
+        can IDs 3 thru 6 should be drive motors
+            CANsparkmax + NEO brushless
+    can ID 20 should be gyroscope
+            CTRE pigeon2
+    should have PIDF controlled heading
+    commands
+        drive
+            drive in field-centric or robot-centric through passed bool
+
+Shooter should be its own subsytem.
+    2 motors for intake, 2 motors for shooter
+        can IDs 7+8 are intake.
+            CANsparkmax + NEO550 brushless
+        can IDs 9+10 are shooter. 
+            shooter motor velocity controlled by PIDF controller
+    commands
+        shoot
+            spin up shooter to passed velocity, feed note into shooter
+        intake
+            run intake until note is detected in shooter
+        shooter_eject
+            eject note at low speed
+        intake_eject
+            run intake in reverse to eject jammed note
+        
+climbers should be its own subsystem.
+    can IDs 11+12 are climbers.
+    absolute encoder used to detect position of climbers
+    conditionals used to run climbers up or downs
+    commands
+        override
+            run climber at passed speed, no safeties, used by extend and retract to operate
+        extend
+            run climber up until at setpoint
+            if encoder is not set correctly and safety switch is triggered, abort command
+            utilize override to run climber
+        retract
+            run climber down until at encoder zero
+            if encoder is not set correctly and safety switch is triggered, abort command
+            utilize override to run climber
+        setzero
+            run climber down at slow speed until safety switch is triggered
+            reset encoder counts + small offset to keep off switch
+            needs ran at least once per robot running cycle to relearn retracted position
+            climbers must be slightly off retracted or switch triggered to function
