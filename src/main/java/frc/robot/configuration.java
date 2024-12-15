@@ -9,6 +9,18 @@ import edu.wpi.first.math.trajectory.TrapezoidProfile;
 /**Configuration class which contains constants and configuration values for the robot.*/
 public class configuration {
 
+    /**Constants and configuration for main robot class.*/
+    public static class robotconfig {
+        
+        //ports for controllers
+        public static final  int joystickport = 0;
+        public static final int controllerport = 1;
+
+        //axis deadbands
+        public static final double joystickXYdeadband = 0.2;
+        public static final double joystickZdeadband = 0.5;
+    }
+
     /**Constants and configuration for the drivetrain of the robot. */
     public static class driveconfig {
 
@@ -65,7 +77,7 @@ public class configuration {
     }
 
     /**Constants and configuration for the climbers of the robot.*/
-    public static class climberconstants {
+    public static class climberconfig {
 
         //motor IDs
         public static final int leftclimberID = 11;

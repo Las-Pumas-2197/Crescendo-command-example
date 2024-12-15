@@ -13,7 +13,7 @@ import com.revrobotics.CANSparkLowLevel.MotorType;
 import edu.wpi.first.wpilibj.DigitalInput;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
-import frc.robot.configuration;
+import frc.robot.configuration.climberconfig;
 
 /**Subclass for climbers. Used to operate the climbers on the robot.*/
 public class climbers extends SubsystemBase {
@@ -31,8 +31,8 @@ public class climbers extends SubsystemBase {
   private final DigitalInput rightsw; //right climber retracted safety switch, NO
 
   //tolerance and setpoint for convenience
-  private static final double setpointtol = configuration.climberconstants.setpointtol;
-  private static final double setpoint = configuration.climberconstants.setpointheight;
+  private static final double setpointtol = climberconfig.setpointtol;
+  private static final double setpoint = climberconfig.setpointheight;
 
   //misc vars for class usage
   private double leftposact;
@@ -43,8 +43,8 @@ public class climbers extends SubsystemBase {
   public climbers() {
 
     //declare motors
-    leftmotor = new CANSparkMax(configuration.climberconstants.leftclimberID, MotorType.kBrushless);
-    rightmotor = new CANSparkMax(configuration.climberconstants.rightclimberID, MotorType.kBrushless);
+    leftmotor = new CANSparkMax(climberconfig.leftclimberID, MotorType.kBrushless);
+    rightmotor = new CANSparkMax(climberconfig.rightclimberID, MotorType.kBrushless);
 
     //inversions, inversions must ALWAYS be before any dependent objects get declared, like encoders
     rightmotor.setInverted(true);
@@ -54,12 +54,12 @@ public class climbers extends SubsystemBase {
     rightencoder = rightmotor.getEncoder();
 
     //encoder conversion factors
-    leftencoder.setPositionConversionFactor(configuration.climberconstants.encoderconvfactor);
-    rightencoder.setPositionConversionFactor(configuration.climberconstants.encoderconvfactor);
+    leftencoder.setPositionConversionFactor(climberconfig.encoderconvfactor);
+    rightencoder.setPositionConversionFactor(climberconfig.encoderconvfactor);
 
     //declare digital inputs
-    leftsw = new DigitalInput(configuration.climberconstants.leftswport);
-    rightsw = new DigitalInput(configuration.climberconstants.rightswport);
+    leftsw = new DigitalInput(climberconfig.leftswport);
+    rightsw = new DigitalInput(climberconfig.rightswport);
 
   }
 

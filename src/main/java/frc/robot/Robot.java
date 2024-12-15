@@ -22,7 +22,7 @@ public class Robot extends TimedRobot {
 
   //the actual robot object. All subsystems and commands should be subclassed through this object, which is declared in
   //the main robotcontainer class. Name can be changed to whatever is desired, as long as it is called up in the same way.
-  private RobotContainer m_robotContainer;
+  private CrescendoBot m_robotContainer;
 
   //example autonomous command, can be any name or command. Called up later in autonomousInit().
   private Command m_autonomousCommand;
@@ -34,7 +34,7 @@ public class Robot extends TimedRobot {
     
     //declares the "robot container" object. Basically injects the robot object into this class, which can then be called 
     //upon by any override in this class.
-    m_robotContainer = new RobotContainer();
+    m_robotContainer = new CrescendoBot();
   }
 
   //Called continuously by the scheduler every 20ms, regardless of robot state. Things that should run continuously in 

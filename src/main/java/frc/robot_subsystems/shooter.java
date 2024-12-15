@@ -52,6 +52,7 @@ public class shooter extends SubsystemBase {
   private double velocitysetpoint;
   private boolean atSetpoint;
   private boolean shooterready;
+  private boolean notesensordebounced;
 
   public shooter() {
 
@@ -101,25 +102,27 @@ public class shooter extends SubsystemBase {
    */
   private Command startshooterCL(double velocityRPM) {
 
-    velocitysetpoint = velocityRPM;
+    //write to internal values, speed actuals are gathered from encoders, speed des is the setpoint passed into this command,
+    //error is the difference between the two
+    leftspeedact = leftshooterencoder.getVelocity();
+    leftspeeddes = velocityRPM;
+    leftspeederror = leftspeeddes - leftspeedact;
+    rightspeedact = rightshooterencoder.getVelocity();
+    rightspeeddes = velocityRPM;
+    rightspeederror = rightspeeddes - rightspeedact;
 
-    //run two runnables in parallel for left and right shooter and write PIDF outputs to motors
+    //run two runnables in parallel for left and right shooter and write PIDF outputs to motors,
+    //then stop motors after command finishes
     //parallel command will not finish until both subsequent runnables are finished or until interrupted
     return parallel(
 
       run(() -> leftshooter.setVoltage(
-        leftPID.calculate(leftshooterencoder.getVelocity(), velocityRPM) + leftFF.calculate(velocityRPM))),
+        leftPID.calculate(leftshooterencoder.getVelocity(), velocityRPM) + leftFF.calculate(velocityRPM)))
+      .finallyDo(() -> leftshooter.set(0)),
         
       run(() -> rightshooter.setVoltage(
-        rightPID.calculate(leftshooterencoder.getVelocity(), velocityRPM) + rightFF.calculate(velocityRPM))));
-  }
-
-  /**Stops the shooter motors. Used exclusively for internal functions. */
-  private Command stopshooter() {
-
-    //the .alongWith() function is a decorator similar in function to the parallel() method, just runs sequentially in 
-    //line rather than in parallel on the same thread
-    return runOnce(() -> leftshooter.set(0)).alongWith(runOnce(() -> rightshooter.set(0)));
+        rightPID.calculate(leftshooterencoder.getVelocity(), velocityRPM) + rightFF.calculate(velocityRPM)))
+      .finallyDo(() -> rightshooter.set(0)));
   }
 
   /**Returns a bool that explains whether both PID controllers are at setpoint.*/
@@ -168,16 +171,21 @@ public class shooter extends SubsystemBase {
 
     //trigger goes true when at velocity setpoint, note is detected, and debounce period of 1 sec has passed. Then pass trigger
     //as boolean to shooterready var. This vastly simplifies and condenses shoot() logic
+    //notesensordebounced goes true when note sensor sends true for more than 1 second, used to permissively allow shooter
+    //to run
     shooterready = new Trigger(() -> atSetpoint).and(notesensor::get).debounce(1).getAsBoolean();
+    notesensordebounced = new Trigger(notesensor::get).debounce(1).getAsBoolean();
+    
+    //first command starts shooter at passed velocity while note sensor detects a note, otherwise finishes instantly
+    //second command starts intake when shooterready returns true, ends when shooteready returns false
+    return parallel(
 
-    //starts shooter at passed velocity, waits until shooterready boolean from trigger above passes true, then runs intake
-    //until shooterready bool reads false (due to notesensor going false), then stops shooter and ends command
-    return 
       run(() -> startshooterCL(velocity))
-      .andThen(waitUntil(() -> shooterready)
+      .onlyWhile(() -> notesensordebounced),
+
+      waitUntil(() -> shooterready)
       .andThen(intakeoverride())
-      .until(() -> shooterready = false)
-      .finallyDo(() -> stopshooter()));
+      .until(() -> shooterready ? false : true));
   }
 
   /**Returns an array of doubles containing pertinate data from the shooter subsystem.*/
@@ -193,14 +201,5 @@ public class shooter extends SubsystemBase {
   }
 
   @Override
-  public void periodic() {
-    //write to internal values, speed actuals are gathered from encoders, speed des is the setpoint passed into this command,
-    //error is the difference between the two
-    leftspeedact = leftshooterencoder.getVelocity();
-    leftspeeddes = velocitysetpoint;
-    leftspeederror = leftspeeddes - leftspeedact;
-    rightspeedact = rightshooterencoder.getVelocity();
-    rightspeeddes = velocitysetpoint;
-    rightspeederror = rightspeeddes - rightspeedact;
-  }
+  public void periodic() {}
 }
