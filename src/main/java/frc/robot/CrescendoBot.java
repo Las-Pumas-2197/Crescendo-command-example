@@ -63,6 +63,15 @@ public class CrescendoBot {
 
   }
 
+  /**Call this void to run all commands that are needed to run at robot startup.*/
+  public void runInitCommands() {
+
+    //must be ran at start of robot operation to zero encoders. If climbers are already retracted far enough where they are
+    //acutating the safety switches, then command will zero encoders and end. If not retracted fully, will retract climbers
+    //until switch is depressed, then will zero encoders
+    subsys_climbers.setZero();
+  }
+
   /**Call this void to run all pertinate commands from button bindings during teleop.*/
   public void runTeleopCommands() {
 
@@ -80,37 +89,41 @@ public class CrescendoBot {
     joystick.povLeft().onTrue(runOnce(() -> headingdes = 0.5*pi));
     joystick.povRight().onTrue(runOnce(() -> headingdes = -0.5*pi));
 
-    //shooter operation bindings
+    //shooter + climber operation bindings
     //if left bumper or right bumper is depressed, gives other layers of bindings
 
     //shooter eject layer, must use .whileTrue decorator or command will never end
-    if (controller.leftBumper().getAsBoolean()) {
-      controller.a().whileTrue(subsys_shooter.shootereject());
-      controller.b().whileTrue(subsys_shooter.intakeeject());
+    //added second condition to conditional to stop possibility of two commands being scheduled if both right and left bumper
+    //are depressed and trigger button is depressed
+    if (controller.leftBumper().getAsBoolean() & controller.rightBumper().getAsBoolean() != true) {
+      controller.a().whileTrue(subsys_shooter.shootereject()); //eject note at low speed, runs shooters and intake
+      controller.b().whileTrue(subsys_shooter.intakeeject()); //ejecte note backwards through intake
 
     //climber override layer
-    } else if (controller.rightBumper().getAsBoolean()) {
-      controller.a().whileTrue(subsys_climbers.overrideright(-1));
-      controller.y().whileTrue(subsys_climbers.overrideright(1));
-      controller.povDown().whileTrue(subsys_climbers.overrideleft(-1));
-      controller.povUp().whileTrue(subsys_climbers.overrideleft(1));
+    //also added additional condition to prevent above problem
+    } else if (controller.rightBumper().getAsBoolean() & controller.leftBumper().getAsBoolean() != true) {
+      controller.a().whileTrue(subsys_climbers.overrideright(-1)); //override right down
+      controller.y().whileTrue(subsys_climbers.overrideright(1)); //override right up
+      controller.povDown().whileTrue(subsys_climbers.overrideleft(-1)); //override left down
+      controller.povUp().whileTrue(subsys_climbers.overrideleft(1)); //override left up
 
     //normal layer
     } else {
       controller.a().onTrue(subsys_shooter.shoot(2000)); //2000rpm, need measured for optimal performance
       controller.b().onTrue(subsys_shooter.autointake()); //automatically run intake until note is detected in pickup
-      controller.povUp().onTrue(subsys_climbers.extend());
-      controller.povDown().onTrue(subsys_climbers.retract());
+      controller.povUp().onTrue(subsys_climbers.extend()); //extend climbers automatically
+      controller.povDown().onTrue(subsys_climbers.retract()); //retract climbers automatically
     }
   }
 
+  /**Call this void to post telemetry to Shuffleboard.*/
   public void runTelemetry() {
     subsys_telemetry.climberData();
     subsys_telemetry.shooterData();
     subsys_telemetry.drivetrainData();
   }
 
-  public Command getAutonomousCommand() {
+  public Command getAutoCommand() {
     return Commands.print("No autonomous command configured");
   }
 }

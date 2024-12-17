@@ -49,7 +49,6 @@ public class shooter extends SubsystemBase {
   private double rightspeedact;
   private double rightspeeddes;
   private double rightspeederror;
-  private double velocitysetpoint;
   private boolean atSetpoint;
   private boolean shooterready;
   private boolean notesensordebounced;
@@ -140,7 +139,8 @@ public class shooter extends SubsystemBase {
     //run shooter motors at 1/4 max speed to controllably eject note from the robot
     return parallel(
       run(() -> leftshooter.set(0.25)).finallyDo(() -> leftshooter.set(0)),
-      run(() -> rightshooter.set(0.25)).finallyDo(() -> rightshooter.set(0)));
+      run(() -> rightshooter.set(0.25)).finallyDo(() -> rightshooter.set(0)),
+      run(() -> intakeoverride()));
   }
 
   /**Ignores note sensor state and overrides intake motors to be on.*/

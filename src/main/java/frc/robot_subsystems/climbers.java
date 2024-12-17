@@ -109,7 +109,7 @@ public class climbers extends SubsystemBase {
     //run climbers down in parallel until safety switch is depressed, then reset encoder to that position + tolerance
     return parallel(
 
-      run(() -> overrideleft(-0.5)) //run climber
+      run(() -> overrideleft(-0.5)) //run climber slowly in reverse
         .until(leftsw::get) //until switch returns true
         .finallyDo(() -> leftencoder.setPosition(setpointtol)), //set encoder to 0 + tolerance for space when retracting
 

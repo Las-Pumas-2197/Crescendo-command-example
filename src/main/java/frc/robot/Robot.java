@@ -22,10 +22,10 @@ public class Robot extends TimedRobot {
 
   //the actual robot object. All subsystems and commands should be subclassed through this object, which is declared in
   //the main robotcontainer class. Name can be changed to whatever is desired, as long as it is called up in the same way.
-  private CrescendoBot m_robotContainer;
+  private CrescendoBot system_CrescendoBot;
 
-  //example autonomous command, can be any name or command. Called up later in autonomousInit().
-  private Command m_autonomousCommand;
+  //example autonomous command, can be any name or command. Instantiated up later in autonomousInit().
+  private Command autoCommand;
 
   //An override that is called specifically when the robot code is initially started. It is called for
   //one scheduler cycle.
@@ -34,7 +34,7 @@ public class Robot extends TimedRobot {
     
     //declares the "robot container" object. Basically injects the robot object into this class, which can then be called 
     //upon by any override in this class.
-    m_robotContainer = new CrescendoBot();
+    system_CrescendoBot = new CrescendoBot();
   }
 
   //Called continuously by the scheduler every 20ms, regardless of robot state. Things that should run continuously in 
@@ -48,6 +48,7 @@ public class Robot extends TimedRobot {
     //if the instance is never told to run with this line, no commands would be scheduled and no functions ran.
     //See https://docs.wpilib.org/en/stable/docs/software/commandbased/command-scheduler.html for more information.
     CommandScheduler.getInstance().run();
+    system_CrescendoBot.runTelemetry();
 
   }
 
@@ -67,12 +68,17 @@ public class Robot extends TimedRobot {
   //autonomousInit() is called once by the scheduler whenever it transitions to the autonomous state.
   @Override
   public void autonomousInit() {
-    m_autonomousCommand = m_robotContainer.getAutonomousCommand();
 
-    //handles edgecases where a null command can crash the framework.
-    if (m_autonomousCommand != null) {
-      m_autonomousCommand.schedule();
+    //instantiate autoCommand, can also be in robotInit
+    autoCommand = system_CrescendoBot.getAutoCommand();
+
+    //schedules command if command is not null to prevent crashes if command is null
+    if (autoCommand != null) {
+      autoCommand.schedule();
     }
+
+    //call init commands during auto
+    system_CrescendoBot.runInitCommands();
   }
 
   //Called continuously by the scheduler every 20ms whenever the robot is in the autonomous running state.
@@ -87,15 +93,19 @@ public class Robot extends TimedRobot {
   @Override
   public void teleopInit() {
     
-    //handles edgecases where there is a null command so the framework does not crash
-    if (m_autonomousCommand != null) {
-      m_autonomousCommand.cancel();
+    //cancels auto command if not null to prevent crashes if command is null
+    if (autoCommand != null) {
+      autoCommand.cancel();
     }
   }
 
   //Called continuously by the scheduler every 20ms whenever the robot is in the teleop state.
   @Override
-  public void teleopPeriodic() {}
+  public void teleopPeriodic() {
+
+    //run teleop commands (including drive, shooter, and climber commands) during teleop
+    system_CrescendoBot.runTeleopCommands();
+  }
 
   //Called once by the scheduler whenever the robot exits teleop mode.
   @Override
